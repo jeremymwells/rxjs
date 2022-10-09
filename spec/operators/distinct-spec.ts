@@ -3,6 +3,7 @@ import { distinct, mergeMap, take } from 'rxjs/operators';
 import { TestScheduler } from 'rxjs/testing';
 import { of, Observable } from 'rxjs';
 import { observableMatcher } from '../helpers/observableMatcher';
+import { asInteropObservable } from '../helpers/interop-helper';
 
 /** @test {distinct} */
 describe('distinct', () => {
@@ -218,6 +219,20 @@ describe('distinct', () => {
     });
   });
 
+  it('should support a flushing an interop observable stream', () => {
+    testScheduler.run(({ hot, expectObservable, expectSubscriptions }) => {
+      const e1 = hot('  --a--b--a--b--a--b--|');
+      const e1subs = '  ^-------------------!';
+      const e2 = hot('  -----------x--------|');
+      const e2subs = '  ^-------------------!';
+      const expected = '--a--b--------a--b--|';
+
+      expectObservable(e1.pipe(distinct(undefined, asInteropObservable(e2)))).toBe(expected);
+      expectSubscriptions(e1.subscriptions).toBe(e1subs);
+      expectSubscriptions(e2.subscriptions).toBe(e2subs);
+    });
+  });
+
   it('should raise error if flush raises error', () => {
     testScheduler.run(({ hot, expectObservable, expectSubscriptions }) => {
       const e1 = hot('  --a--b--a--b--a--b--|');
@@ -227,6 +242,20 @@ describe('distinct', () => {
       const expected = '--a--b-------#       ';
 
       expectObservable(e1.pipe(distinct(undefined, e2))).toBe(expected);
+      expectSubscriptions(e1.subscriptions).toBe(e1subs);
+      expectSubscriptions(e2.subscriptions).toBe(e2subs);
+    });
+  });
+
+  it('should raise error if interop flush raises error', () => {
+    testScheduler.run(({ hot, expectObservable, expectSubscriptions }) => {
+      const e1 = hot('  --a--b--a--b--a--b--|');
+      const e1subs = '  ^------------!       ';
+      const e2 = hot('  -----------x-#       ');
+      const e2subs = '  ^------------!       ';
+      const expected = '--a--b-------#       ';
+
+      expectObservable(e1.pipe(distinct(undefined, asInteropObservable(e2)))).toBe(expected);
       expectSubscriptions(e1.subscriptions).toBe(e1subs);
       expectSubscriptions(e2.subscriptions).toBe(e2subs);
     });
@@ -247,6 +276,21 @@ describe('distinct', () => {
     });
   });
 
+  it('should unsubscribe from the flushing interop stream when the main stream is unsubbed', () => {
+    testScheduler.run(({ hot, expectObservable, expectSubscriptions }) => {
+      const e1 = hot('  --a--b--a--b--a--b--|');
+      const e1subs = '  ^----------!         ';
+      const e2 = hot('  -----------x--------|');
+      const e2subs = '  ^----------!         ';
+      const unsub = '   -----------!         ';
+      const expected = '--a--b------         ';
+
+      expectObservable(e1.pipe(distinct(undefined, asInteropObservable(e2))), unsub).toBe(expected);
+      expectSubscriptions(e1.subscriptions).toBe(e1subs);
+      expectSubscriptions(e2.subscriptions).toBe(e2subs);
+    });
+  });
+
   it('should allow opting in to default comparator with flush', () => {
     testScheduler.run(({ hot, expectObservable, expectSubscriptions }) => {
       const e1 = hot('  --a--b--a--b--a--b--|');
@@ -256,6 +300,20 @@ describe('distinct', () => {
       const expected = '--a--b--------a--b--|';
 
       expectObservable(e1.pipe(distinct(undefined, e2))).toBe(expected);
+      expectSubscriptions(e1.subscriptions).toBe(e1subs);
+      expectSubscriptions(e2.subscriptions).toBe(e2subs);
+    });
+  });
+
+  it('should allow opting in to default comparator with interop flush', () => {
+    testScheduler.run(({ hot, expectObservable, expectSubscriptions }) => {
+      const e1 = hot('  --a--b--a--b--a--b--|');
+      const e1subs = '  ^-------------------!';
+      const e2 = hot('  -----------x--------|');
+      const e2subs = '  ^-------------------!';
+      const expected = '--a--b--------a--b--|';
+
+      expectObservable(e1.pipe(distinct(undefined, asInteropObservable(e2)))).toBe(expected);
       expectSubscriptions(e1.subscriptions).toBe(e1subs);
       expectSubscriptions(e2.subscriptions).toBe(e2subs);
     });
